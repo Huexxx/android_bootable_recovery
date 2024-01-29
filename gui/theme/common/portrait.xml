@@ -1079,6 +1079,13 @@
 			</text>
 
 			<button style="main_button_half_height">
+				<condition var1="tw_has_data_media" var2="1"/>
+				<placement x="%center_x%" y="%row15a_y%"/>
+				<text>{@format_data_case_btn=Format Data / Casefold}</text>
+				<action function="page">formatdatacase</action>
+			</button>
+
+			<button style="main_button_half_height">
 				<placement x="%indent%" y="%row18a_y%"/>
 				<text>{@advanced_wipe_btn=Advanced Wipe}</text>
 				<actions>
@@ -1270,6 +1277,75 @@
 			</action>
 		</page>
 
+		<page name="formatdatacase">
+			<template name="page"/>
+
+			<text style="text_l">
+				<placement x="%col1_x_header%" y="%row3_header_y%"/>
+				<text>{@wipe_hdr=Wipe}</text>
+			</text>
+
+			<text style="text_m">
+				<placement x="%col1_x_header%" y="%row4_header_y%"/>
+				<text>{@format_data_case_hdr=Format Data with Casefold Flags}</text>
+			</text>
+
+			<text style="text_m_fail">
+				<placement x="%center_x%" y="%row2_y%" placement="5"/>
+				<text>{@format_data_ptr1=Format Data will wipe all of your apps,}</text>
+			</text>
+
+			<text style="text_m_fail">
+				<placement x="%center_x%" y="%row3_y%" placement="5"/>
+				<text>{@format_data_ptr2=backups, pictures, videos, media, and}</text>
+			</text>
+
+			<text style="text_m_fail">
+				<placement x="%center_x%" y="%row4_y%" placement="5"/>
+				<text>{@format_data_ptr3=removes encryption on internal storage.}</text>
+			</text>
+
+			<text style="text_m_fail">
+				<condition var1="tw_has_adopted_storage" var2="1"/>
+				<placement x="%center_x%" y="%row5_y%" placement="5"/>
+				<text>{@format_data_adopted=Including Adopted Storage}</text>
+			</text>
+
+			<text style="text_m">
+				<placement x="%center_x%" y="%row6_y%" placement="5"/>
+				<text>{@format_data_undo=This cannot be undone.}</text>
+			</text>
+
+			<text style="text_m">
+				<placement x="%center_x%" y="%row8_y%" placement="5"/>
+				<text>{@yes_continue=Type yes to continue.  Press back to cancel.}</text>
+			</text>
+
+			<input>
+				<placement x="%indent%" y="%row10_y%" w="%content_width%" h="%input_height%"/>
+				<text>%tw_confirm_formatdatacase%</text>
+				<data name="tw_confirm_formatdatacase"/>
+				<restrict minlen="3" maxlen="3" allow="yes"/>
+				<action function="page">formatdatacase_confirm</action>
+			</input>
+
+			<fill color="%accent_color%">
+				<placement x="%indent%" y="row11_y" w="%content_width%" h="input_line_width"/>
+			</fill>
+
+			<template name="keyboardtemplate"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">wipe</action>
+			</action>
+		</page>
+
 		<page name="formatdata_confirm">
 			<action>
 				<condition var1="tw_confirm_formatdata" op="=" var2="yes"/>
@@ -1286,6 +1362,25 @@
 			<action>
 				<condition var1="tw_confirm_formatdata" op="!=" var2="yes"/>
 				<action function="page">formatdata</action>
+			</action>
+		</page>
+
+		<page name="formatdatacase_confirm">
+			<action>
+				<condition var1="tw_confirm_formatdatacase" op="=" var2="yes"/>
+				<actions>
+					<action function="set">tw_back=formatdatacase</action>
+					<action function="set">tw_action=wipecase</action>
+					<action function="set">tw_action_param=DATAMEDIA</action>
+					<action function="set">tw_action_text1={@formatting_data_case=Formatting Data with Casefold Flags...}</action>
+					<action function="set">tw_complete_text1={@format_data_complete=Data Format Complete}</action>
+					<action function="page">action_page</action>
+				</actions>
+			</action>
+
+			<action>
+				<condition var1="tw_confirm_formatdatacase" op="!=" var2="yes"/>
+				<action function="page">formatdatacase</action>
 			</action>
 		</page>
 
@@ -1541,8 +1636,47 @@
 			</button>
 
 			<button style="main_button_half_height">
-				<condition var1="tw_partition_vfat" op="=" var2="1"/>
+				<condition var1="tw_partition_f2fs" op="=" var2="1"/>
+				<condition var1="tw_partition_mount_point" op="=" var2="/data"/>
+				<placement x="%center_x%" y="%row12a_y%"/>
+				<text>F2FS / Casefold</text>
+				<actions>
+					<action function="set">tw_back=refreshfilesystem</action>
+					<action function="set">tw_action=changefilesystem</action>
+					<action function="set">tw_action_param=%tw_partition_mount_point%</action>
+					<action function="set">tw_action_new_file_system=f2fs_case</action>
+					<action function="set">tw_has_action2=0</action>
+					<action function="set">tw_text1={@change_fs_confirm=Change %tw_partition_name%?}</action>
+					<action function="set">tw_text2=F2FS with Casefold support</action>
+					<action function="set">tw_action_text1={@formatting=Formatting...}</action>
+					<action function="set">tw_complete_text1={@format_complete=Format Complete}</action>
+					<action function="set">tw_slider_text={@swipe_change_fs=Swipe to Change}</action>
+					<action function="page">confirm_action</action>
+				</actions>
+			</button>
+
+			<button style="main_button_half_height">
+				<condition var1="tw_partition_f2fs" op="=" var2="1"/>
 				<placement x="%center_x%" y="%row15a_y%"/>
+				<text>F2FS</text>
+				<actions>
+					<action function="set">tw_back=refreshfilesystem</action>
+					<action function="set">tw_action=changefilesystem</action>
+					<action function="set">tw_action_param=%tw_partition_mount_point%</action>
+					<action function="set">tw_action_new_file_system=f2fs</action>
+					<action function="set">tw_has_action2=0</action>
+					<action function="set">tw_text1={@change_fs_confirm=Change %tw_partition_name%?}</action>
+					<action function="set">tw_text2=F2FS</action>
+					<action function="set">tw_action_text1={@formatting=Formatting...}</action>
+					<action function="set">tw_complete_text1={@format_complete=Format Complete}</action>
+					<action function="set">tw_slider_text={@swipe_change_fs=Swipe to Change}</action>
+					<action function="page">confirm_action</action>
+				</actions>
+			</button>
+
+			<button style="main_button_half_height">
+				<condition var1="tw_partition_vfat" op="=" var2="1"/>
+				<placement x="%center_x%" y="%row18a_y%"/>
 				<text>FAT</text>
 				<actions>
 					<action function="set">tw_back=refreshfilesystem</action>
@@ -1561,7 +1695,7 @@
 
 			<button style="main_button_half_height">
 				<condition var1="tw_partition_exfat" op="=" var2="1"/>
-				<placement x="%center_x%" y="%row18a_y%"/>
+				<placement x="%center_x%" y="%row21a_y%"/>
 				<text>exFAT</text>
 				<actions>
 					<action function="set">tw_back=refreshfilesystem</action>
@@ -1571,25 +1705,6 @@
 					<action function="set">tw_has_action2=0</action>
 					<action function="set">tw_text1={@change_fs_confirm=Change %tw_partition_name%?}</action>
 					<action function="set">tw_text2=exFAT</action>
-					<action function="set">tw_action_text1={@formatting=Formatting...}</action>
-					<action function="set">tw_complete_text1={@format_complete=Format Complete}</action>
-					<action function="set">tw_slider_text={@swipe_change_fs=Swipe to Change}</action>
-					<action function="page">confirm_action</action>
-				</actions>
-			</button>
-
-			<button style="main_button_half_height">
-				<condition var1="tw_partition_f2fs" op="=" var2="1"/>
-				<placement x="%center_x%" y="%row21a_y%"/>
-				<text>F2FS</text>
-				<actions>
-					<action function="set">tw_back=refreshfilesystem</action>
-					<action function="set">tw_action=changefilesystem</action>
-					<action function="set">tw_action_param=%tw_partition_mount_point%</action>
-					<action function="set">tw_action_new_file_system=f2fs</action>
-					<action function="set">tw_has_action2=0</action>
-					<action function="set">tw_text1={@change_fs_confirm=Change %tw_partition_name%?}</action>
-					<action function="set">tw_text2=F2FS</action>
 					<action function="set">tw_action_text1={@formatting=Formatting...}</action>
 					<action function="set">tw_complete_text1={@format_complete=Format Complete}</action>
 					<action function="set">tw_slider_text={@swipe_change_fs=Swipe to Change}</action>

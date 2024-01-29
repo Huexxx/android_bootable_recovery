@@ -1789,6 +1789,32 @@ int TWPartitionManager::Format_Data(void) {
 	return false;
 }
 
+int TWPartitionManager::Format_Data_Case(void) {
+	TWPartition* dat = Find_Partition_By_Path("/data");
+	TWPartition* metadata = Find_Partition_By_Path("/metadata");
+	if (metadata != NULL)
+		metadata->UnMount(false);
+
+	if (dat != NULL) {
+		if (android::base::GetBoolProperty("ro.virtual_ab.enabled", false)) {
+#ifndef TW_EXCLUDE_APEX
+			twrpApex apex;
+			apex.Unmount();
+#endif
+			if (metadata != NULL)
+				metadata->Mount(true);
+			if (!Check_Pending_Merges())
+				return false;
+		}
+		return dat->Wipe_Encryption_Case();
+	} else {
+		gui_msg(Msg(msg::kError, "unable_to_locate=Unable to locate {1}.")("/data"));
+		return false;
+	}
+	return false;
+}
+
+
 int TWPartitionManager::Wipe_Media_From_Data(void) {
 	TWPartition* dat = Find_Partition_By_Path("/data");
 

@@ -339,6 +339,7 @@ protected:
 	int fileexists(std::string arg);
 	int flash(std::string arg);
 	int wipe(std::string arg);
+	int wipecase(std::string arg);
 	int refreshsizes(std::string arg);
 	int nandroid(std::string arg);
 	int fixcontexts(std::string arg);

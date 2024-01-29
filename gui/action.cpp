@@ -217,6 +217,7 @@ GUIAction::GUIAction(xml_node<>* node)
 		// These actions will run in a separate thread
 		ADD_ACTION(flash);
 		ADD_ACTION(wipe);
+		ADD_ACTION(wipecase);
 		ADD_ACTION(refreshsizes);
 		ADD_ACTION(nandroid);
 		ADD_ACTION(fixcontexts);
@@ -1216,6 +1217,28 @@ int GUIAction::wipe(std::string arg)
 			}
 		}
 #endif
+	}
+	PartitionManager.Update_System_Details();
+	if (ret_val)
+		ret_val = 0; // 0 is success
+	else
+		ret_val = 1; // 1 is failure
+	operation_end(ret_val);
+	return 0;
+}
+
+int GUIAction::wipecase(std::string arg)
+{
+	operation_start("Format");
+	DataManager::SetValue("tw_partition", arg);
+	int ret_val = false;
+
+	if (simulate) {
+		simulate_progress_bar();
+	} else {
+		if (arg == "DATAMEDIA") {
+			ret_val = PartitionManager.Format_Data_Case();
+		}
 	}
 	PartitionManager.Update_System_Details();
 	if (ret_val)

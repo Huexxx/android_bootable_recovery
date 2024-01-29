@@ -1830,6 +1830,8 @@ bool TWPartition::Wipe(string New_File_System) {
 			wiped = Wipe_MTD();
 		else if (New_File_System == "f2fs")
 			wiped = Wipe_F2FS();
+		else if (New_File_System == "f2fs_case")
+			wiped = Wipe_F2FS_Case();
 		else if (New_File_System == "vfat")
 			wiped = Wipe_FAT();
 		else {
@@ -2207,6 +2209,69 @@ exit:
 	return ret;
 }
 
+bool TWPartition::Wipe_Encryption_Case() {
+	bool Save_Data_Media = Has_Data_Media;
+	bool ret = false;
+	BasePartition* base_partition = make_partition();
+
+	if (!base_partition->PreWipeEncryption())
+		goto exit;
+
+	Find_Actual_Block_Device();
+	if (!Is_Present) {
+		LOGINFO("Block device not present, cannot format %s.\n", Display_Name.c_str());
+		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+		return false;
+	}
+
+#ifdef TW_INCLUDE_CRYPTO
+	if (!UnMount(true))
+		return false;
+	if (Is_Decrypted && !Decrypted_Block_Device.empty()) {
+		if (delete_crypto_blk_dev((char*)("userdata")) != 0) {
+			LOGERR("Error deleting crypto block device, continuing anyway.\n");
+		}
+	}
+#endif
+	Has_Data_Media = false;
+	Decrypted_Block_Device = "";
+	Is_Decrypted = false;
+	Is_Encrypted = false;
+	if (Current_File_System == "f2fs")
+		Current_File_System = "f2fs_case";
+	if (Wipe(Current_File_System)) {
+		Has_Data_Media = Save_Data_Media;
+		DataManager::SetValue(TW_IS_ENCRYPTED, 0);
+#ifndef TW_OEM_BUILD
+		gui_msg("format_data_msg=You may need to reboot recovery to be able to use /data again.");
+#endif
+		if (Is_FBE) {
+			gui_msg(Msg(msg::kWarning, "data_media_fbe_msg=TWRP will not recreate /data/media on an FBE device. Please reboot into your rom to create /data/media."));
+		} else {
+			if (Has_Data_Media && !Symlink_Mount_Point.empty()) {
+				if (Mount(false))
+					PartitionManager.Add_MTP_Storage(MTP_Storage_ID);
+			}
+		}
+
+		ret = true;
+		if (!Key_Directory.empty())
+			ret = PartitionManager.Wipe_By_Path(Key_Directory);
+		if (ret)
+			ret = base_partition->PostWipeEncryption();
+		goto exit;
+	} else {
+		Has_Data_Media = Save_Data_Media;
+		gui_err("format_data_err=Unable to format to remove encryption.");
+		if (Has_Data_Media && Mount(false))
+			PartitionManager.Add_MTP_Storage(MTP_Storage_ID);
+		goto exit;
+	}
+exit:
+	delete base_partition;
+	return ret;
+}
+
 void TWPartition::Check_FS_Type() {
 	const char* type;
 	blkid_probe pr;
@@ -2510,8 +2575,6 @@ bool TWPartition::Wipe_F2FS() {
 	}
 
 	bool NeedPreserveFooter = true;
-	bool needs_casefold = false;
-  	bool needs_projid = false;
 
 	Find_Actual_Block_Device();
 	if (!Is_Present) {
@@ -2520,8 +2583,6 @@ bool TWPartition::Wipe_F2FS() {
 		return false;
 	}
 
-	needs_casefold = android::base::GetBoolProperty("external_storage.casefold.enabled", false);
-	needs_projid = android::base::GetBoolProperty("external_storage.projid.enabled", false);
 	unsigned long long dev_sz = TWFunc::IOCTL_Get_Block_Size(Actual_Block_Device.c_str());
 	if (!dev_sz)
 		return false;
@@ -2530,11 +2591,74 @@ bool TWPartition::Wipe_F2FS() {
 		Length < 0 ? dev_sz += Length : dev_sz -= CRYPT_FOOTER_OFFSET;
 	char dev_sz_str[48];
 	sprintf(dev_sz_str, "%llu", (dev_sz / 4096));
-	if(needs_projid)
-		f2fs_command += " -O project_quota,extra_attr";
 
-	if(needs_casefold)
-		f2fs_command += " -O casefold -C utf8";
+	if (Needs_Fs_Compress)
+		f2fs_command += " -O compression,extra_attr";
+
+	f2fs_command += " " + Actual_Block_Device + " " + dev_sz_str;
+
+	if (TWFunc::Path_Exists("/system/bin/sload_f2fs")) {
+		f2fs_command += " && sload_f2fs -t /data " + Actual_Block_Device;
+	}
+
+	/**
+	 * On decrypted devices, IOCTL_Get_Block_Size calculates size on device mapper,
+	 * so there's no need to preserve footer.
+	 */
+	if ((Is_Decrypted && !Decrypted_Block_Device.empty()) ||
+			Crypto_Key_Location != "footer") {
+		NeedPreserveFooter = false;
+	}
+	LOGINFO("mkfs.f2fs command: %s\n", f2fs_command.c_str());
+	if (TWFunc::Exec_Cmd(f2fs_command) == 0) {
+		
+		if (NeedPreserveFooter)
+			Wipe_Crypto_Key();
+		Recreate_AndSec_Folder();
+		gui_msg("done=Done.");
+		return true;
+	} else {
+		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+		return false;
+	}
+	return true;
+}
+
+bool TWPartition::Wipe_F2FS_Case() {
+	std::string f2fs_command;
+
+	if (!UnMount(true))
+		return false;
+
+	if (TWFunc::Path_Exists("/system/bin/mkfs.f2fs"))
+		f2fs_command = "/system/bin/mkfs.f2fs";
+	else if (TWFunc::Path_Exists("/system/bin/make_f2fs"))
+		f2fs_command = "/system/bin/make_f2fs";
+	else {
+		LOGINFO("mkfs.f2fs binary not found, using rm -rf to wipe.\n");
+		return Wipe_RMRF();
+	}
+
+	bool NeedPreserveFooter = true;
+
+	Find_Actual_Block_Device();
+	if (!Is_Present) {
+		LOGINFO("Block device not present, cannot wipe %s.\n", Display_Name.c_str());
+		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+		return false;
+	}
+
+	unsigned long long dev_sz = TWFunc::IOCTL_Get_Block_Size(Actual_Block_Device.c_str());
+	if (!dev_sz)
+		return false;
+
+	if (NeedPreserveFooter)
+		Length < 0 ? dev_sz += Length : dev_sz -= CRYPT_FOOTER_OFFSET;
+	char dev_sz_str[48];
+	sprintf(dev_sz_str, "%llu", (dev_sz / 4096));
+	f2fs_command += " -d1 -f -w 4096 -R 0:0";
+	f2fs_command += " -O project_quota,extra_attr,quota -O verity";
+	f2fs_command += " -O casefold -C utf8";
 
 	if (Needs_Fs_Compress)
 		f2fs_command += " -O compression,extra_attr";

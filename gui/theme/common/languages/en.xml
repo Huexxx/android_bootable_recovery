@@ -147,6 +147,7 @@
 		<string name="advanced_wipe_btn">Advanced Wipe</string>
 		<string name="wipe_enc_confirm">Wipe Encryption from Data?</string>
 		<string name="formatting_data">Formatting Data...</string>
+		<string name="formatting_data_case">Formatting Data with Casefold Flags...</string>
 		<string name="swipe_format_data">Swipe to Format Data</string>
 		<string name="swipe_format_data_s">   Format Data</string>
 		<string name="factory_reset_complete">Factory Reset Complete</string>
@@ -158,6 +159,8 @@
 		<string name="invalid_part_sel">Invalid partition selection</string>
 		<string name="format_data_hdr">Format Data</string>
 		<string name="format_data_btn">Format Data</string>
+		<string name="format_data_case_hdr">Format Data with Casefold flags</string>
+		<string name="format_data_case_btn">Format Data / Casefold</string>
 		<string name="format_data_ptr1">Format Data will wipe all of your apps,</string>
 		<string name="format_data_ptr2">backups, pictures, videos, media, and</string>
 		<string name="format_data_ptr3">removes encryption on internal storage.</string>
